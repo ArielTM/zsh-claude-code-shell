@@ -75,9 +75,10 @@ _zsh_claude_accept_line() {
     # Show loading message
     zle -R "Generating command with Claude..."
 
-    # Build claude command with system prompt for instructions
+    # Build claude command - restrict tools and use focused system prompt
     local claude_args=("-p" "--output-format" "text")
-    claude_args+=("--append-system-prompt" "You are a shell command generator. Output ONLY the raw shell command, nothing else. No markdown, no code blocks, no explanations, no comments, no backticks. Just the executable command itself on a single line.")
+    claude_args+=("--tools" "WebSearch,WebFetch")
+    claude_args+=("--system-prompt" "You are a shell command generator. Your ONLY job is to output a single shell command that accomplishes the user's request. Output ONLY the raw shell command - no markdown, no code blocks, no explanations, no comments, no backticks. Just the executable command itself on a single line. If you need to look up command syntax, you may use web search.")
 
     if [[ -n "$ZSH_CLAUDE_SHELL_MODEL" ]]; then
         claude_args+=("--model" "$ZSH_CLAUDE_SHELL_MODEL")
