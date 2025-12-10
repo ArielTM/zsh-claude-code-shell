@@ -66,8 +66,9 @@ _zsh_claude_stop_spinner() {
         # Small delay to let the process terminate
         sleep 0.05
     fi
-    # Show cursor and clear line
-    printf '\033[?25h\r\033[K' > /dev/tty
+    # Show cursor, clear spinner line, move up one line, clear that line too
+    # This returns cursor to the original query line position
+    printf '\033[?25h\r\033[K\033[A\r\033[K' > /dev/tty
 }
 
 # Check if claude CLI is available (lazy check - deferred until first use)
@@ -139,6 +140,8 @@ _zsh_claude_accept_line() {
     # Start spinner or show simple message
     local spinner_pid=""
     if [[ "$ZSH_CLAUDE_SHELL_FANCY_LOADING" == "1" ]]; then
+        # Print newline so spinner appears below the query line
+        print > /dev/tty
         # Disable job notifications to prevent [1] 12345 and terminated messages
         setopt local_options no_notify no_monitor
         _zsh_claude_spinner &
@@ -157,20 +160,46 @@ _zsh_claude_accept_line() {
         claude_args+=("--model" "$ZSH_CLAUDE_SHELL_MODEL")
     fi
 
-    # Call Claude Code CLI with just the query as prompt
-    local cmd
+    # Call Claude Code CLI with output to temp file so we can use wait
+    local tmpfile="${TMPDIR:-/tmp}/zsh-claude-$$"
+    local claude_pid
     local exit_code
+    local cmd
 
     if [[ "$ZSH_CLAUDE_SHELL_DEBUG" == "1" ]]; then
-        cmd=$(claude "${claude_args[@]}" "$query" 2>&1)
-        exit_code=$?
+        claude "${claude_args[@]}" "$query" > "$tmpfile" 2>&1 &
     else
-        cmd=$(claude "${claude_args[@]}" "$query" 2>/dev/null)
-        exit_code=$?
+        claude "${claude_args[@]}" "$query" > "$tmpfile" 2>/dev/null &
     fi
+    claude_pid=$!
 
-    # Stop spinner
+    # Set up trap to clean up on interrupt (Ctrl+C)
+    trap '
+        kill $claude_pid 2>/dev/null
+        [[ -n "$spinner_pid" ]] && _zsh_claude_stop_spinner "$spinner_pid"
+        rm -f "$tmpfile"
+        trap - INT
+        zle reset-prompt
+        return 130
+    ' INT
+
+    # Wait for claude to finish
+    wait $claude_pid
+    exit_code=$?
+
+    # Reset trap and stop spinner
+    trap - INT
     [[ -n "$spinner_pid" ]] && _zsh_claude_stop_spinner "$spinner_pid"
+
+    # Read output from temp file
+    cmd=$(<"$tmpfile")
+    rm -f "$tmpfile"
+
+    # Handle interrupt (Ctrl+C) - exit code 130 = 128 + SIGINT(2)
+    if [[ $exit_code -eq 130 ]] || [[ $exit_code -eq 143 ]]; then
+        zle reset-prompt
+        return 130
+    fi
 
     # Handle errors
     if [[ $exit_code -ne 0 ]] || [[ -z "$cmd" ]]; then
