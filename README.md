@@ -55,6 +55,23 @@ git clone https://github.com/ArielTM/zsh-claude-code-shell ~/zsh-claude-code-she
 echo 'source ~/zsh-claude-code-shell/zsh-claude-code-shell.plugin.zsh' >> ~/.zshrc
 ```
 
+### Sheldon
+
+Add to your `~/.config/sheldon/plugins.toml`:
+
+```toml
+[plugins.zsh-claude-code-shell]
+github = "ArielTM/zsh-claude-code-shell"
+```
+
+Then apply:
+
+```bash
+sheldon lock && sheldon source >> ~/.zshrc
+```
+
+Or if you're already sourcing sheldon in your `~/.zshrc` (e.g. `eval "$(sheldon source)"`), just run `sheldon lock`.
+
 ### zinit
 
 ```bash
