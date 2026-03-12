@@ -80,6 +80,33 @@ _zsh_claude_check_cli() {
     return 0
 }
 
+# Direct CLI function - call as: zcs <query> or echo <query> | zcs or zcs <<< "multiline"
+zcs() {
+    local query
+    if [[ $# -gt 0 ]]; then
+        query="$*"
+    else
+        query=$(cat)
+    fi
+
+    [[ -z "${query// }" ]] && { echo "Usage: zcs <query> or echo <query> | zcs" >&2; return 1; }
+    _zsh_claude_check_cli || return 1
+
+    local claude_args=("-p" "--output-format" "text")
+    claude_args+=("--tools" "WebSearch,WebFetch")
+    claude_args+=("--system-prompt" "You are a shell command generator. Your ONLY job is to output a single shell command that accomplishes the user's request. Output ONLY the raw shell command - no markdown, no code blocks, no explanations, no comments, no backticks. Just the executable command itself on a single line. If you need to look up command syntax, you may use web search.")
+    [[ -n "$ZSH_CLAUDE_SHELL_MODEL" ]] && claude_args+=("--model" "$ZSH_CLAUDE_SHELL_MODEL")
+
+    local cmd
+    if [[ "$ZSH_CLAUDE_SHELL_DEBUG" == "1" ]]; then
+        cmd=$(claude "${claude_args[@]}" "$query")
+    else
+        cmd=$(claude "${claude_args[@]}" "$query" 2>/dev/null)
+    fi
+    cmd=$(_zsh_claude_sanitize "$cmd")
+    print -z "$cmd"
+}
+
 # Sanitize output - remove markdown code blocks and trim whitespace
 _zsh_claude_sanitize() {
     local input="$1"

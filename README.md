@@ -69,10 +69,30 @@ zplug "ArielTM/zsh-claude-code-shell"
 
 ## Usage
 
+### Interactive (`# ` prefix)
+
 1. Type a comment starting with `# ` followed by what you want to do
 2. Press Enter
 3. The comment is replaced with the generated command
 4. Review the command, press Enter to execute (or edit it first)
+
+### Direct (`zcs` command)
+
+Use `zcs` for multiline queries or when you want to generate a command outside of the `# ` flow. The generated command is pre-filled at the next prompt ready to review and run.
+
+```bash
+# single-line
+zcs show top 10 largest files in current directory
+
+# pipe
+echo "kill all node processes" | zcs
+
+# multiline heredoc
+zcs <<EOF
+find all go files
+modified in the last 7 days
+EOF
+```
 
 ### Examples
 
@@ -121,12 +141,14 @@ export ZSH_CLAUDE_SHELL_DISABLED=1
 
 The plugin overrides zsh's `accept-line` widget (the Enter key handler). When you press Enter:
 
-1. If the line starts with `# `, it extracts your description
+1. If the buffer starts with `# `, it extracts your description
 2. Calls `claude -p` with your description
 3. Replaces the buffer with the generated command
 4. You review and press Enter again to execute
 
 Lines that don't start with `# ` work normally.
+
+The `zcs` function works the same way but is called directly. It uses `print -z` to push the generated command into the ZLE input stack, so it appears pre-filled at the next prompt.
 
 ## License
 
